@@ -1,0 +1,24 @@
+<Bindings>
+    <Layer name="SI_KEYBINDINGS_LAYER_PARAGON_BANK_SWITCH_BETA" allowFallthrough="true">
+        <Category name="SI_KEYBINDINGS_LAYER_PARAGON_BANK_SWITCH_BETA">
+            <Action name="PARAGON_BANK_SWITCH_BETA_PERSONAL">
+                <Down>
+                    ZO_KeybindStrip_HandleKeybindDown(keybind)
+                    return true
+                </Down>
+            </Action>
+            <Action name="PARAGON_BANK_SWITCH_BETA_GUILD_BANK">
+                <Down>
+                    ZO_KeybindStrip_HandleKeybindDown(keybind)
+                    return true
+                </Down>
+            </Action>
+            <Action name="PARAGON_BANK_SWITCH_BETA_GUILD_STORE">
+                <Down>
+                    ZO_KeybindStrip_HandleKeybindDown(keybind)
+                    return true
+                </Down>
+            </Action>
+        </Category>
+    </Layer>
+</Bindings>
