@@ -1,10 +1,10 @@
 ## Title: Paragon Bank Switch (Beta)
 ## APIVersion: 101051
-## Version: 0.1.0-beta
-## AddOnVersion: 100
+## Version: 0.1.1-beta
+## AddOnVersion: 101
 ## Author: Nixan
 ## OptionalDependsOn: ParagonUI
-## Description: Experimental banker service switching: 1 Personal Bank, 2 Guild Bank, 3 Guild Store. Known bank-session issues; disable separately from ParagonUI.
+## Description: Experimental banker service switching: 1 Personal Bank, 2 Guild Bank. Known bank-session issues; disable separately from ParagonUI.
 
 ParagonBankSwitchBeta.lua
 Localization/en.lua

@@ -9,15 +9,13 @@ local OPENING_UPDATE_NAMESPACE = EVENT_NAMESPACE .. "Opening"
 local RELOAD_UPDATE_NAMESPACE = EVENT_NAMESPACE .. "Reload"
 local CLOSING_UPDATE_NAMESPACE = EVENT_NAMESPACE .. "Closing"
 local SERVICE_ACTION_LAYER = "SI_KEYBINDINGS_LAYER_PARAGON_BANK_SWITCH_BETA"
-local serviceOrder = { "bank", "guildBank", "tradinghouse" }
+local serviceOrder = { "bank", "guildBank" }
 -- Bindings belong to this add-on and preserve later user assignments.
 local services = {
     bank = { indexKey = "bankIndex", interactionType = INTERACTION_BANK, event = EVENT_OPEN_BANK,
         textKey = "INV_BANK_SWITCH_PERSONAL", action = "PARAGON_BANK_SWITCH_BETA_PERSONAL", key = KEY_1 },
     guildBank = { indexKey = "guildBankIndex", interactionType = INTERACTION_GUILDBANK, event = EVENT_OPEN_GUILD_BANK,
         textKey = "INV_BANK_SWITCH_GUILD", action = "PARAGON_BANK_SWITCH_BETA_GUILD_BANK", key = KEY_2 },
-    tradinghouse = { indexKey = "tradingHouseIndex", interactionType = INTERACTION_TRADINGHOUSE, event = EVENT_OPEN_TRADING_HOUSE,
-        textKey = "INV_BANK_SWITCH_STORE", action = "PARAGON_BANK_SWITCH_BETA_GUILD_STORE", key = KEY_3 },
 }
 
 local function IsGuildBankBusy()
@@ -30,8 +28,7 @@ local function IsServiceOption(sceneName, optionType)
     if sceneName == "guildBank" then
         return optionType == CHATTER_START_GUILDBANK or optionType == CHATTER_OPEN_GUILDBANK
     end
-    return sceneName == "tradinghouse"
-        and (optionType == CHATTER_START_TRADINGHOUSE or optionType == CHATTER_OPEN_TRADINGHOUSE)
+    return false
 end
 
 function BankSwitch:Trace(event)
@@ -43,14 +40,13 @@ function BankSwitch:Trace(event)
     local interactionType = GetInteractionType()
     local interactionName = interactionType == INTERACTION_BANK and "bank"
         or interactionType == INTERACTION_GUILDBANK and "guild"
-        or interactionType == INTERACTION_TRADINGHOUSE and "store"
         or interactionType == INTERACTION_CONVERSATION and "conversation" or tostring(interactionType)
-    local line = string.format("%dms %s phase=%s type=%s busy=%s bank=%s/%s guild=%s/%s store=%s dialogue=%s options=%s/%s/%s npc=%s",
+    local line = string.format("%dms %s phase=%s type=%s busy=%s bank=%s/%s guild=%s/%s dialogue=%s options=%s/%s npc=%s",
         GetFrameTimeMilliseconds() - request.startedAt, event, request.phase,
         interactionName, tostring(IsInteractionPending()),
         tostring(IsBankOpen()), SceneState("bank"), tostring(IsGuildBankOpen()), SceneState("guildBank"),
-        SceneState("tradinghouse"), SceneState(self.dialogueSceneName),
-        tostring(self.bankIndex), tostring(self.guildBankIndex), tostring(self.tradingHouseIndex),
+        SceneState(self.dialogueSceneName),
+        tostring(self.bankIndex), tostring(self.guildBankIndex),
         tostring(GetUnitName("interact") == request.bankerName))
     -- Only the latest attempt is retained in memory, including its terminal state.
     if #request.trace == 60 then table.remove(request.trace, 1) end
@@ -92,8 +88,7 @@ end
 
 function BankSwitch:PrintState()
     d("|c88CCFF[PBS Beta]|r " .. T("INV_BANK_DEBUG_STATE_FORMAT",
-        tostring(IsBankOpen()), tostring(IsGuildBankOpen()),
-        tostring(GetInteractionType() == INTERACTION_TRADINGHOUSE), tostring(GetInteractionType())))
+        tostring(IsBankOpen()), tostring(IsGuildBankOpen()), tostring(GetInteractionType())))
     self:CheckForStuckSessions()
 end
 
@@ -109,7 +104,6 @@ function BankSwitch:CreateDebugButtons()
     local actions = {
         { "CloseBank", "INV_BANK_DEBUG_CLOSE_BANK", function() EndInteraction(INTERACTION_BANK) end },
         { "CloseGuild", "INV_BANK_DEBUG_CLOSE_GUILD", function() EndInteraction(INTERACTION_GUILDBANK) end },
-        { "CloseStore", "INV_BANK_DEBUG_CLOSE_STORE", function() self:CloseTradingHouse() end },
         { "State", "INV_BANK_DEBUG_STATE", function() self:PrintState() end },
         { "ReloadUI", "INV_BANK_DEBUG_RELOAD_UI", function() ReloadUI("ingame") end },
     }
@@ -135,7 +129,7 @@ function BankSwitch:CaptureOptions()
         self:CancelSwitch("different-npc")
         return
     end
-    self.bankIndex, self.guildBankIndex, self.tradingHouseIndex = nil, nil, nil
+    self.bankIndex, self.guildBankIndex = nil, nil
     self.bankerName = bankerName
     for index = 1, GetChatterOptionCount() do
         local _, optionType = GetChatterOption(index)
@@ -143,8 +137,6 @@ function BankSwitch:CaptureOptions()
             self.bankIndex = index
         elseif optionType == CHATTER_START_GUILDBANK or optionType == CHATTER_OPEN_GUILDBANK then
             self.guildBankIndex = index
-        elseif optionType == CHATTER_START_TRADINGHOUSE or optionType == CHATTER_OPEN_TRADINGHOUSE then
-            self.tradingHouseIndex = index
         end
     end
     if request and request.phase == "dialogue" then request.optionsReady = true end
@@ -173,7 +165,6 @@ function BankSwitch:CanSwitch(sceneName)
     if GetInteractionType() ~= services[current].interactionType then return false end
     if current == "bank" and (not IsBankOpen() or GetBankingBag() ~= BAG_BANK) then return false end
     if current == "guildBank" and not IsGuildBankOpen() then return false end
-    if current == "tradinghouse" and not TRADING_HOUSE_SEARCH:CanDoCommonOperation() then return false end
     return self.bankerName ~= nil and self.bankerName ~= "" and self.bankerName == GetUnitName("interact")
         and not self.pending and not self.closeRequest and not self.reloadRequest and not IsInteractionPending()
         and not IsGuildBankBusy()
@@ -255,7 +246,6 @@ function BankSwitch:AdvanceSwitch()
     end
     local targetOpen = request.targetScene == "bank" and IsBankOpen()
         or request.targetScene == "guildBank" and IsGuildBankOpen()
-        or request.targetScene == "tradinghouse" and GetInteractionType() == INTERACTION_TRADINGHOUSE
     local scene = SCENE_MANAGER:GetScene(request.targetScene)
     local targetActive = targetOpen and GetInteractionType() == request.targetType and not IsInteractionPending()
         and (request.targetType ~= INTERACTION_BANK or GetBankingBag() == BAG_BANK)
@@ -276,12 +266,8 @@ function BankSwitch:AdvanceSwitch()
                 if request.targetType == INTERACTION_BANK then
                     PLAYER_INVENTORY:ActivateBankSearch()
                     SCENE_MANAGER:Show("bank")
-                elseif request.targetScene == "guildBank" then
-                    PLAYER_INVENTORY:OpenGuildBank()
                 else
-                    if not GetSelectedTradingHouseGuildId() then SelectTradingHouseGuildId(GetGuildId(1)) end
-                    TRADING_HOUSE:OpenTradingHouse()
-                    SYSTEMS:ShowScene(ZO_TRADING_HOUSE_SYSTEM_NAME)
+                    PLAYER_INVENTORY:OpenGuildBank()
                 end
             end
         end
@@ -307,17 +293,6 @@ function BankSwitch:CancelCloseSessions(reason)
     self.closeRequest = nil
     -- Do not end the scene owner here: it may already own the newly opened bank.
     self:Refresh()
-end
-
-function BankSwitch:CloseTradingHouse()
-    self:CancelSwitch("store-exit")
-    if GetInteractionType() == INTERACTION_TRADINGHOUSE and self:StartCloseSessions("tradinghouse") then
-        -- Start while the banker context still exists; the scene's native close
-        -- would otherwise end it before the personal service can be selected.
-        TRADING_HOUSE:CloseTradingHouse()
-    else
-        EndInteraction(INTERACTION_TRADINGHOUSE)
-    end
 end
 
 function BankSwitch:FinishCloseSessions(completed)
@@ -367,25 +342,21 @@ function BankSwitch:AdvanceCloseSessions()
     if not IsBankOpen() and not IsGuildBankOpen() then self:FinishCloseSessions(true) end
 end
 
-function BankSwitch:StartCloseSessions(sourceScene)
+function BankSwitch:StartCloseSessions()
     if self.closeRequest then return true end
     if IsInGamepadPreferredMode() then return false end
-    local fromStore = sourceScene == "tradinghouse"
-    -- Store exit also closes a background personal bank when Guild Bank was
-    -- never opened. It must reach the activation phase even if both flags are false.
-    if not fromStore and (not IsBankOpen() or not IsGuildBankOpen()) then return false end
+    if not IsBankOpen() or not IsGuildBankOpen() then return false end
     local interactionType = GetInteractionType()
     if interactionType == INTERACTION_BANK and GetBankingBag() ~= BAG_BANK then return false end
     if interactionType ~= INTERACTION_BANK then
-        if interactionType ~= INTERACTION_GUILDBANK and interactionType ~= INTERACTION_CONVERSATION
-            and not (fromStore and interactionType == INTERACTION_TRADINGHOUSE) then return false end
+        if interactionType ~= INTERACTION_GUILDBANK and interactionType ~= INTERACTION_CONVERSATION then return false end
         if not self.bankIndex or not self.bankerName or self.bankerName == ""
             or self.bankerName ~= GetUnitName("interact") then return false end
     end
     local reload = self.reloadRequest
     local request = { phase = "activate-bank", trace = reload and reload.trace or {},
         startedAt = reload and reload.startedAt or GetFrameTimeMilliseconds(),
-        bankerName = GetUnitName("interact"), sourceScene = sourceScene }
+        bankerName = GetUnitName("interact") }
     self.closeRequest = request
     self.lastRequest = reload or request
     self:Trace("close-sessions")
@@ -550,15 +521,6 @@ function BankSwitch:Initialize()
         }
         SCENE_MANAGER:GetScene(sceneName):AddFragment(self.actionLayerFragment)
     end
-    ZO_PreHook(ZO_TRADING_HOUSE_INTERACTION, "OnInteractSwitch", function()
-        if self.pending and self.pending.sourceScene == "tradinghouse"
-            or self.closeRequest and self.closeRequest.sourceScene == "tradinghouse" then
-            -- Native assumes this service cannot switch directly. Keep its UI
-            -- cleanup when returning to the root dialogue for our own request.
-            TRADING_HOUSE:CloseTradingHouse()
-            return true
-        end
-    end)
     SecurePostHook("ZO_InventorySlot_DiscoverSlotActionsFromActionList", function(inventorySlot, slotActions)
         self:AdjustDepositActions(inventorySlot, slotActions)
     end)
@@ -580,13 +542,11 @@ function BankSwitch:Initialize()
     local bankEvents = {
         [EVENT_OPEN_BANK] = "open-bank", [EVENT_OPEN_GUILD_BANK] = "open-guild",
         [EVENT_CLOSE_BANK] = "close-bank", [EVENT_CLOSE_GUILD_BANK] = "close-guild",
-        [EVENT_OPEN_TRADING_HOUSE] = "open-store", [EVENT_CLOSE_TRADING_HOUSE] = "close-store",
     }
     for event, name in pairs(bankEvents) do
         local eventName = name
         local openedType = event == EVENT_OPEN_BANK and INTERACTION_BANK
             or event == EVENT_OPEN_GUILD_BANK and INTERACTION_GUILDBANK
-            or event == EVENT_OPEN_TRADING_HOUSE and INTERACTION_TRADINGHOUSE
         EVENT_MANAGER:RegisterForEvent(EVENT_NAMESPACE, event, function()
             local closing = self.closeRequest
             if closing and openedType
@@ -613,7 +573,7 @@ function BankSwitch:Initialize()
         self:CancelSwitch("guild-open-error")
         self:Refresh()
     end)
-    for _, sceneName in ipairs({ "bank", "guildBank", "tradinghouse", self.dialogueSceneName }) do
+    for _, sceneName in ipairs({ "bank", "guildBank", self.dialogueSceneName }) do
         local name = sceneName
         local isDialogue = sceneName == self.dialogueSceneName
         SCENE_MANAGER:GetScene(sceneName):RegisterCallback("StateChange", function(_, state)
@@ -624,7 +584,7 @@ function BankSwitch:Initialize()
             if not isDialogue and state == SCENE_HIDING
                 and not self.pending and not self.reloadRequest then
                 local nextScene = SCENE_MANAGER:GetNextScene()
-                if not nextScene or not nextScene.GetInteractionInfo then self:StartCloseSessions(name) end
+                if not nextScene or not nextScene.GetInteractionInfo then self:StartCloseSessions() end
             end
             if isDialogue and state == SCENE_HIDING and self.pending and self.pending.phase == "dialogue" then
                 self:CancelSwitch("dialogue-closed")
@@ -637,7 +597,7 @@ function BankSwitch:Initialize()
                 if not self.pending and not IsBankOpen() and not IsGuildBankOpen()
                     and GetInteractionType() == INTERACTION_NONE
                     and not INTERACT_WINDOW:IsShowingInteraction() then
-                    self.bankIndex, self.guildBankIndex, self.tradingHouseIndex, self.bankerName = nil, nil, nil, nil
+                    self.bankIndex, self.guildBankIndex, self.bankerName = nil, nil, nil
                 end
                 self:AdvanceSwitch()
                 self:Refresh()
@@ -649,8 +609,6 @@ function BankSwitch:Initialize()
     if guildBankUI then
         SecurePostHook(guildBankUI, "Refresh", function() self:Refresh() end)
     end
-    TRADING_HOUSE_SEARCH:RegisterCallback("OnAwaitingResponse", function() self:Refresh() end)
-    TRADING_HOUSE_SEARCH:RegisterCallback("OnResponseReceived", function() self:Refresh() end)
     EVENT_MANAGER:RegisterForEvent(EVENT_NAMESPACE, EVENT_GAMEPAD_PREFERRED_MODE_CHANGED, function()
         self:CancelSwitch("input-mode-changed")
         self:Refresh()
@@ -663,7 +621,7 @@ function BankSwitch:Initialize()
         self.closeRequest = nil
         EVENT_MANAGER:UnregisterForUpdate(RELOAD_UPDATE_NAMESPACE)
         self.reloadRequest = nil
-        self.bankIndex, self.guildBankIndex, self.tradingHouseIndex, self.bankerName, self.pending = nil, nil, nil, nil, nil
+        self.bankIndex, self.guildBankIndex, self.bankerName, self.pending = nil, nil, nil, nil
         self.servicesVisible = false
         self.actionLayerFragment:SetHiddenForReason("services-unavailable", true)
         KEYBIND_STRIP:RemoveKeybindButtonGroup(self.keybinds)

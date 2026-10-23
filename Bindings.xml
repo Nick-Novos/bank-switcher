@@ -13,12 +13,6 @@
                     return true
                 </Down>
             </Action>
-            <Action name="PARAGON_BANK_SWITCH_BETA_GUILD_STORE">
-                <Down>
-                    ZO_KeybindStrip_HandleKeybindDown(keybind)
-                    return true
-                </Down>
-            </Action>
         </Category>
     </Layer>
 </Bindings>

@@ -23,13 +23,12 @@ source edits there before loading the updated add-on.
 
 - **1**: Personal Bank.
 - **2**: Guild Bank.
-- **3**: Guild Store.
 - The keybind strip also provides clickable service buttons at bankers offering
   multiple services. The current service and unavailable services are disabled.
 - A separate debug button panel on the right, 300 UI units below the top edge,
-  closes Personal Bank, Guild Bank, or Guild Store, prints the current state to
+  closes Personal Bank or Guild Bank, prints the current state to
   chat, or reloads the UI through the native `ReloadUI("ingame")` call.
-- `/pbsb state`: current bank flags, active store interaction and interaction type.
+- `/pbsb state`: current bank flags and interaction type.
 - `/pbsb log`: the latest service-switch/closure trace, up to 60 lines in memory.
 - `/pbsb`: help.
 
@@ -38,9 +37,8 @@ Russian text follow the game's language. The add-on owns the global namespace
 `ParagonBankSwitchBeta`; it does not add a module to `ParagonUI.modules`.
 
 When leaving Guild Bank with both bank flags open, cleanup attempts to activate
-Personal Bank and close it. Guild Store exit uses the same sequence when a Bank
-option is available from the same NPC, even if Guild Bank was never opened.
-The existing experimental transition and cleanup behavior is preserved.
+Personal Bank and close it. This experimental cleanup is retained for the two
+banking services.
 
 ## Known Beta limitation
 
@@ -48,7 +46,7 @@ If a bank flag remains open after interaction ends, or session cleanup fails,
 the add-on chooses the recovery hint from the remaining flags. For Personal Bank,
 it asks you to talk to a banker, select Personal Bank and press **ESC**. Only if
 the interface freezes does it suggest the add-on's **Close personal bank** button.
-For Guild Bank, it asks you to select Guild Bank or Guild Store and press **ESC**;
+For Guild Bank, it asks you to select Guild Bank and press **ESC**;
 if the interface freezes, enter `/reloadui`. If both flags remain, both instructions are shown,
 Personal Bank first. The hint repeats only if the remaining flags change or clear
 and get stuck again.
